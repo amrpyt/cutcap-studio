@@ -117,6 +117,7 @@ This repository does not currently declare an open-source license. Until a licen
 
 ## Roadmap
 
+- [Local-first commercial platform & launch plan](docs/plans/2026-09-30-local-first-platform-launch.md)
 - Project history and recent jobs
 - Drag-and-drop imports
 - Visual YouTube in/out selection from a preview player
