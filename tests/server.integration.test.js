@@ -82,3 +82,14 @@ test('long local jobs are not closed by the default five-minute HTTP timeout', a
     await new Promise(resolve => server.close(resolve));
   }
 });
+
+test('server exposes YouTube download routes and partial-download plumbing', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8');
+  assert.match(source, /\/api\/youtube-info/);
+  assert.match(source, /\/api\/youtube-download/);
+  assert.match(source, /--download-sections/);
+  assert.match(source, /--ffmpeg-location/);
+  assert.match(source, /after_move:__CUTCAP_FILE__/);
+  assert.match(source, /netstat\.exe/);
+  assert.match(source, /ffmpeg-static/);
+});

@@ -77,3 +77,18 @@ test('export stage offers an editable CapCut project instead of only rendered cl
   assert.match(app, /capcutBtn/);
   assert.match(app, /runOutput\('capcut'\)/);
 });
+
+test('YouTube downloader is integrated as a first-class workspace', () => {
+  for (const id of ['youtubeTab', 'youtubeWorkspace', 'ytUrl', 'ytStart', 'ytEnd', 'ytQuality', 'ytStartBtn', 'ytProgress', 'ytNetwork', 'ytCancelBtn']) {
+    assert.match(html, new RegExp('id="' + id + '"'));
+  }
+  assert.match(app, /class YoutubeDownloaderPanel/);
+  assert.match(app, /youtube-download/);
+  assert.match(app, /youtube-info/);
+});
+
+test('fast YouTube clip mode is the default and exact mode is advanced', () => {
+  assert.match(html, /id="ytExact" type="checkbox"/);
+  assert.match(html, /الوضع السريع/);
+  assert.doesNotMatch(html, /id="ytExact"[^>]+checked/);
+});

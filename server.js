@@ -130,6 +130,10 @@ async function nativePick(kind, initialValue = '') {
   } else if (kind === 'image') {
     const dir = initialValue && fs.existsSync(initialValue) ? path.dirname(initialValue) : path.join(os.homedir(), 'Downloads');
     script += `$d=New-Object System.Windows.Forms.OpenFileDialog\n$d.Title='Choose watermark logo'\n$d.Filter='Images and GIF|*.png;*.jpg;*.jpeg;*.webp;*.gif|All files|*.*'\n$d.Multiselect=$false\n$d.CheckFileExists=$true\n$d.RestoreDirectory=$true\n$d.InitialDirectory=${psQuote(dir)}\nif($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK){$result=$d.FileName}\n`;
+  } else if (kind === 'folder') {
+    const dir = initialValue && fs.existsSync(initialValue) && fs.statSync(initialValue).isDirectory()
+      ? initialValue : path.join(os.homedir(), 'Downloads');
+    script += `$d=New-Object System.Windows.Forms.FolderBrowserDialog\n$d.Description='Choose download folder'\n$d.SelectedPath=${psQuote(dir)}\n$d.ShowNewFolderButton=$true\nif($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK){$result=$d.SelectedPath}\n`;
   } else if (kind === 'output') {
     const suggested = initialValue || path.join(os.homedir(), 'Downloads', 'CUT.mp4');
     script += `$d=New-Object System.Windows.Forms.SaveFileDialog\n$d.Title='Save edited video'\n$d.Filter='MP4 video|*.mp4|MOV video|*.mov|All files|*.*'\n$d.InitialDirectory=${psQuote(path.dirname(suggested))}\n$d.FileName=${psQuote(path.basename(suggested))}\n$d.OverwritePrompt=$true\n$d.RestoreDirectory=$true\nif($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK){$result=$d.FileName}\n`;
@@ -151,7 +155,7 @@ function registerJob(jobId, child, label = '') {
   const id = normalizeJobId(jobId);
   if (!id) return null;
   const pending = jobs.get(id);
-  const record = { id, child, label, startedAt: pending?.startedAt || Date.now(), running: true, cancelled: !!pending?.cancelled, progress: null };
+  const record = { id, child, label, startedAt: pending?.startedAt || Date.now(), running: true, cancelled: !!pending?.cancelled, progress: null, details: {} };
   jobs.set(id, record);
   return record;
 }
@@ -169,6 +173,10 @@ function updateProgressFromText(record, text) {
 
 function finishJob(record, ok = false) {
   if (!record) return;
+  if (record.networkTimer) {
+    clearInterval(record.networkTimer);
+    record.networkTimer = null;
+  }
   record.running = false;
   record.finishedAt = Date.now();
   if (ok && !record.cancelled) record.progress = 100;
@@ -708,7 +716,7 @@ function saveWatermarkSettings(settings) {
 }
 let watermarkSettings = loadWatermarkSettings();
 function findFfmpeg() {
-  const direct = [process.env.FFMPEG_PATH, path.join(ROOT, 'ffmpeg.exe')].filter(Boolean);
+  const direct = [process.env.FFMPEG_PATH, path.join(ROOT, 'ffmpeg.exe'), path.join(process.env.LOCALAPPDATA || '', 'CutCap', 'node_modules', 'ffmpeg-static', 'ffmpeg.exe')].filter(Boolean);
   for (const c of direct) { try { if (fs.existsSync(c) && fs.statSync(c).isFile()) return c; } catch {} }
   const winget = path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WinGet', 'Packages');
   try {
@@ -725,6 +733,351 @@ function findFfmpeg() {
   return 'ffmpeg';
 }
 const ffmpegPath = findFfmpeg();
+
+function findYtDlp() {
+  const candidates = [
+    process.env.YTDLP_PATH,
+    path.join(ROOT, 'yt-dlp.exe'),
+    path.join(process.env.LOCALAPPDATA || '', 'CutCap', 'yt-dlp.exe'),
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    try { if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate; } catch {}
+  }
+  return 'yt-dlp';
+}
+const ytDlpPath = findYtDlp();
+
+async function validateYtDlp() {
+  try {
+    const result = await runProcess(ytDlpPath, ['--version'], { cwd: ROOT, maxOutput: 128 * 1024 });
+    if (result.code !== 0) return { ok: false, version: '', error: result.output || 'yt-dlp did not start.' };
+    return { ok: true, version: ((result.stdout || result.output).split(/\r?\n/).find(Boolean) || '').trim(), error: '' };
+  } catch (error) {
+    return { ok: false, version: '', error: error?.message || String(error) };
+  }
+}
+
+function normalizeYoutubeUrl(value) {
+  const text = String(value || '').trim();
+  if (!text) throw new Error('ضع رابط YouTube أولًا.');
+  let parsed;
+  try { parsed = new URL(text); } catch { throw new Error('رابط YouTube غير صالح.'); }
+  const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+  const allowed = new Set(['youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be', 'youtube-nocookie.com']);
+  if (!allowed.has(host)) throw new Error('هذه الأداة مخصصة لروابط YouTube فقط.');
+  return parsed.toString();
+}
+
+function parseTimeValue(value, label = 'الوقت') {
+  const text = String(value ?? '').trim();
+  if (!text) throw new Error(`${label} مطلوب.`);
+  const parts = text.split(':');
+  if (parts.length > 3 || parts.some(part => part === '' || !/^\d+(?:\.\d+)?$/.test(part))) {
+    throw new Error(`${label} يجب أن يكون مثل 26:15 أو 01:02:03.`);
+  }
+  const values = parts.map(Number);
+  if (parts.length >= 2 && values.at(-1) >= 60) throw new Error(`${label}: الثواني يجب أن تكون أقل من 60.`);
+  if (parts.length === 3 && values[1] >= 60) throw new Error(`${label}: الدقائق يجب أن تكون أقل من 60.`);
+  const seconds = parts.length === 1 ? values[0]
+    : parts.length === 2 ? values[0] * 60 + values[1]
+      : values[0] * 3600 + values[1] * 60 + values[2];
+  if (!Number.isFinite(seconds) || seconds < 0) throw new Error(`${label} غير صالح.`);
+  return seconds;
+}
+
+function youtubeFormatSelector(quality) {
+  const q = String(quality || '720').toLowerCase();
+  const allowed = new Set(['240', '360', '480', '720', '1080', '1440', '2160', 'best']);
+  if (!allowed.has(q)) throw new Error('الجودة غير مدعومة.');
+  if (q === 'best') return 'bv*+ba/b';
+  return `bv*[height<=${q}]+ba/b[height<=${q}]/b`;
+}
+
+function unitBytes(value, unit) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  const powers = { B: 0, kB: 1, KB: 1, KiB: 1, MB: 2, MiB: 2, GB: 3, GiB: 3 };
+  const power = powers[unit] ?? 0;
+  const base = /iB$/.test(unit) ? 1024 : 1000;
+  return n * (base ** power);
+}
+
+function clockSeconds(value) {
+  const match = String(value || '').match(/^(\d{2}):(\d{2}):(\d{2}(?:\.\d+)?)$/);
+  return match ? Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]) : null;
+}
+
+function readNetworkTotals() {
+  return new Promise(resolve => {
+    execFile('netstat.exe', ['-e'], { windowsHide: true, timeout: 3000, maxBuffer: 256 * 1024 }, (error, stdout) => {
+      if (error) return resolve(null);
+      const match = String(stdout || '').match(/Bytes\s+([\d,]+)\s+([\d,]+)/i);
+      if (!match) return resolve(null);
+      resolve({
+        rx: Number(match[1].replace(/,/g, '')),
+        tx: Number(match[2].replace(/,/g, '')),
+      });
+    });
+  });
+}
+
+async function attachNetworkMeter(record) {
+  if (!record || process.platform !== 'win32') return;
+  const baseline = await readNetworkTotals();
+  if (!baseline || !record.running) return;
+  record.networkBaseline = baseline;
+  record.details.networkRxBytes = 0;
+  record.details.networkScope = 'device';
+  const tick = async () => {
+    const now = await readNetworkTotals();
+    if (!now || !record.running || !record.networkBaseline) return;
+    record.details.networkRxBytes = Math.max(0, now.rx - record.networkBaseline.rx);
+    record.details.networkTxBytes = Math.max(0, now.tx - record.networkBaseline.tx);
+  };
+  record.networkTimer = setInterval(tick, 1000);
+  record.networkTimer.unref?.();
+}
+
+async function refreshNetworkMeter(record) {
+  if (!record?.networkBaseline) return;
+  const now = await readNetworkTotals();
+  if (!now) return;
+  record.details.networkRxBytes = Math.max(0, now.rx - record.networkBaseline.rx);
+  record.details.networkTxBytes = Math.max(0, now.tx - record.networkBaseline.tx);
+}
+
+function updateYoutubeProgress(record, rawText) {
+  if (!record) return;
+  const text = String(rawText || '').replace(/\r/g, '\n');
+  if (!text) return;
+  if (/Downloading webpage|player API JSON|m3u8 information|Extracting URL/i.test(text)) record.details.phase = 'preparing';
+  if (/Downloading \d+ time ranges?|Destination:|Output #0/i.test(text)) record.details.phase = 'downloading';
+  if (/\[Merger\]|Merging formats|Fixing MPEG-TS/i.test(text)) record.details.phase = 'merging';
+
+  const timeMatches = [...text.matchAll(/time=\s*(\d{2}:\d{2}:\d{2}(?:\.\d+)?)/g)];
+  if (timeMatches.length) {
+    const processed = clockSeconds(timeMatches.at(-1)[1]);
+    if (processed != null) {
+      record.details.processedSeconds = processed;
+      const total = Number(record.details.clipDurationSec);
+      if (total > 0) updateJobProgress(record, Math.min(99, processed / total * 100));
+    }
+  }
+
+  const sizeMatches = [...text.matchAll(/size=\s*([\d.]+)\s*(kB|KB|KiB|MB|MiB|GB|GiB)/g)];
+  if (sizeMatches.length) {
+    const [, value, unit] = sizeMatches.at(-1);
+    const bytes = unitBytes(value, unit);
+    if (bytes != null) record.details.outputBytes = bytes;
+  }
+
+  const speedMatches = [...text.matchAll(/speed=\s*([\d.]+)x/g)];
+  if (speedMatches.length) {
+    const speed = Number(speedMatches.at(-1)[1]);
+    if (Number.isFinite(speed)) {
+      record.details.processSpeed = speed;
+      const total = Number(record.details.clipDurationSec);
+      const processed = Number(record.details.processedSeconds || 0);
+      if (total > processed && speed > 0) record.details.etaSeconds = (total - processed) / speed;
+    }
+  }
+
+  const pctMatches = [...text.matchAll(/\[download\]\s+([\d.]+)%/g)];
+  if (pctMatches.length && !(Number(record.details.clipDurationSec) > 0)) {
+    updateJobProgress(record, Number(pctMatches.at(-1)[1]));
+  }
+
+  const totalMatches = [...text.matchAll(/\bof\s+(?:~\s*)?([\d.]+)\s*(kB|KB|KiB|MB|MiB|GB|GiB)/g)];
+  if (totalMatches.length) {
+    const [, value, unit] = totalMatches.at(-1);
+    const bytes = unitBytes(value, unit);
+    if (bytes != null) record.details.reportedDownloadBytes = bytes;
+  }
+
+  const dlSpeedMatches = [...text.matchAll(/\bat\s+([\d.]+)\s*(kB|KB|KiB|MB|MiB|GB|GiB)\/s/g)];
+  if (dlSpeedMatches.length) {
+    const [, value, unit] = dlSpeedMatches.at(-1);
+    const bytes = unitBytes(value, unit);
+    if (bytes != null) record.details.downloadBytesPerSecond = bytes;
+  }
+
+  const fileMatches = [...text.matchAll(/__CUTCAP_FILE__(.+?)(?:\n|$)/g)];
+  if (fileMatches.length) record.details.outputPath = fileMatches.at(-1)[1].trim();
+
+  const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+  if (lines.length) {
+    const last = lines.at(-1).replace(/https?:\/\/\S+/g, '[media URL]');
+    record.details.lastLine = last.slice(0, 500);
+  }
+}
+
+function runYoutubeCommand(args, { jobId = '', label = 'تنزيل من YouTube', clipDurationSec = 0 } = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(ytDlpPath, args, { cwd: ROOT, windowsHide: true, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
+    const record = registerJob(jobId, child, label);
+    if (record) {
+      record.details = { type: 'youtube', phase: 'preparing', clipDurationSec: Number(clipDurationSec) || 0 };
+      attachNetworkMeter(record).catch(() => {});
+    }
+    const stdoutChunks = [], stderrChunks = [];
+    let stdoutSize = 0, stderrSize = 0;
+    const max = 12 * 1024 * 1024;
+    const collect = (chunks, kind, chunk) => {
+      const b = Buffer.from(chunk);
+      chunks.push(b);
+      if (kind === 'stdout') stdoutSize += b.length; else stderrSize += b.length;
+      while ((kind === 'stdout' ? stdoutSize : stderrSize) > max && chunks.length > 1) {
+        const removed = chunks.shift().length;
+        if (kind === 'stdout') stdoutSize -= removed; else stderrSize -= removed;
+      }
+      const text = b.toString('utf8');
+      updateProgressFromText(record, text);
+      updateYoutubeProgress(record, text);
+    };
+    child.stdout.on('data', chunk => collect(stdoutChunks, 'stdout', chunk));
+    child.stderr.on('data', chunk => collect(stderrChunks, 'stderr', chunk));
+    child.once('error', err => {
+      finishJob(record, false);
+      reject(err);
+    });
+    child.once('close', async code => {
+      const exitCode = Number(code ?? 1);
+      await refreshNetworkMeter(record).catch(() => {});
+      const stdout = Buffer.concat(stdoutChunks).toString('utf8').replace(/^\uFEFF/, '').trim();
+      const stderr = Buffer.concat(stderrChunks).toString('utf8').replace(/^\uFEFF/, '').trim();
+      const output = [stdout, stderr].filter(Boolean).join('\n').trim();
+      const cancelled = !!record?.cancelled;
+      if (record && exitCode === 0 && !cancelled) {
+        record.details.phase = 'done';
+        record.progress = 100;
+      }
+      finishJob(record, exitCode === 0);
+      resolve({ code: exitCode, stdout, stderr, output, cancelled, details: record?.details || {} });
+    });
+    if (record?.cancelled) terminateProcessTree(child);
+  });
+}
+
+function youtubeOutputTemplate(outputDir, kind) {
+  const suffix = kind === 'clip' ? ' [clip]' : kind === 'audio' ? ' [audio]' : '';
+  return path.join(outputDir, `%(title).100s${suffix}.%(ext)s`);
+}
+
+function findYoutubeOutputFile(outputDir, kind, markerPath = '') {
+  try {
+    if (markerPath && fs.existsSync(markerPath) && fs.statSync(markerPath).isFile()) return markerPath;
+  } catch {}
+  const suffix = kind === 'clip' ? ' [clip]' : kind === 'audio' ? ' [audio]' : '';
+  try {
+    const candidates = fs.readdirSync(outputDir, { withFileTypes: true })
+      .filter(entry => entry.isFile() && (!suffix || entry.name.includes(suffix)))
+      .map(entry => {
+        const file = path.join(outputDir, entry.name);
+        try { return { file, mtimeMs: fs.statSync(file).mtimeMs }; } catch { return null; }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.mtimeMs - a.mtimeMs);
+    return candidates[0]?.file || '';
+  } catch {
+    return '';
+  }
+}
+
+async function getYoutubeInfo(rawUrl) {
+  const url = normalizeYoutubeUrl(rawUrl);
+  const validation = await validateYtDlp();
+  if (!validation.ok) throw new Error('محرك YouTube غير موجود. ثبّت أو حدّث yt-dlp أولًا.');
+  const args = ['--dump-single-json', '--skip-download', '--no-playlist', '--no-warnings', '--js-runtimes', 'node', url];
+  const result = await runProcess(ytDlpPath, args, { cwd: ROOT, maxOutput: 8 * 1024 * 1024 });
+  if (result.code !== 0) throw new Error(result.output || 'تعذر قراءة معلومات الفيديو.');
+  let info;
+  try { info = JSON.parse(result.stdout); } catch { throw new Error('تعذر قراءة بيانات الفيديو من YouTube.'); }
+  return {
+    id: String(info.id || ''),
+    title: String(info.title || 'YouTube video'),
+    channel: String(info.channel || info.uploader || ''),
+    duration: Number(info.duration) || 0,
+    thumbnail: String(info.thumbnail || ''),
+    webpageUrl: String(info.webpage_url || url),
+  };
+}
+
+async function downloadYoutube(body) {
+  const startedAt = Date.now();
+  const url = normalizeYoutubeUrl(body.url);
+  const validation = await validateYtDlp();
+  if (!validation.ok) throw new Error('محرك YouTube غير جاهز. استخدم زر تحديث المحرك ثم حاول مرة أخرى.');
+
+  const kind = ['clip', 'video', 'audio'].includes(body.kind) ? body.kind : 'clip';
+  const outputDir = path.resolve(String(body.outputDir || path.join(os.homedir(), 'Downloads')));
+  if (!fs.existsSync(outputDir) || !fs.statSync(outputDir).isDirectory()) throw new Error('مجلد الحفظ غير موجود.');
+
+  let startSec = 0, endSec = 0, clipDurationSec = 0;
+  if (kind === 'clip') {
+    startSec = parseTimeValue(body.start, 'وقت البداية');
+    endSec = parseTimeValue(body.end, 'وقت النهاية');
+    if (endSec <= startSec) throw new Error('وقت النهاية يجب أن يكون بعد وقت البداية.');
+    clipDurationSec = endSec - startSec;
+  }
+
+  const args = [
+    url,
+    '--no-playlist',
+    '--js-runtimes', 'node',
+    '--ffmpeg-location', ffmpegPath,
+    '--newline',
+    '--progress',
+    '--no-colors',
+    '--print', 'after_move:__CUTCAP_FILE__%(filepath)s',
+  ];
+
+  if (kind === 'clip') args.push('--download-sections', `*${startSec}-${endSec}`);
+
+  if (kind === 'audio') {
+    args.push('-f', 'ba/b', '-x', '--audio-format', 'mp3', '--audio-quality', '0');
+  } else {
+    args.push('-f', youtubeFormatSelector(body.quality), '--merge-output-format', 'mp4');
+  }
+
+  if (kind === 'clip' && body.exact === true) args.push('--force-keyframes-at-cuts');
+  args.push('-o', youtubeOutputTemplate(outputDir, kind));
+
+  const jobId = normalizeJobId(body.jobId);
+  let result = await runYoutubeCommand(args, {
+    jobId,
+    label: kind === 'clip' ? 'تنزيل المقطع' : kind === 'audio' ? 'تنزيل الصوت' : 'تنزيل الفيديو',
+    clipDurationSec,
+  });
+
+  if (!result.cancelled && result.code !== 0 && /\b403\b|forbidden|forcing sabr|missing a url/i.test(result.output)) {
+    const retryArgs = args.concat(['--extractor-args', 'youtube:player_client=android']);
+    result = await runYoutubeCommand(retryArgs, {
+      jobId,
+      label: 'إعادة المحاولة بطريقة بديلة',
+      clipDurationSec,
+    });
+  }
+
+  if (result.cancelled) throw new Error('تم إلغاء التنزيل.');
+  if (result.code !== 0) throw new Error(result.output || `yt-dlp exited with code ${result.code}.`);
+
+  const markerMatches = [...result.output.matchAll(/__CUTCAP_FILE__(.+?)(?:\r?\n|$)/g)];
+  const markerPath = markerMatches.length ? markerMatches.at(-1)[1].trim() : String(result.details?.outputPath || '');
+  const outputPath = findYoutubeOutputFile(outputDir, kind, markerPath);
+  const finalSize = outputPath && fs.existsSync(outputPath) ? fs.statSync(outputPath).size : Number(result.details?.outputBytes || 0);
+
+  return {
+    ok: true,
+    kind,
+    outputPath,
+    outputDir,
+    finalSize,
+    networkRxBytes: Number(result.details?.networkRxBytes || 0),
+    reportedDownloadBytes: Number(result.details?.reportedDownloadBytes || 0),
+    elapsedMs: Date.now() - startedAt,
+    output: result.output,
+  };
+}
 
 function addWatermarkToTimeline(timeline, settings, logoInfo) {
   if (!settings?.path || !Array.isArray(timeline?.v?.[0])) throw new Error('Invalid video timeline for watermark.');
@@ -961,15 +1314,26 @@ async function handleApi(req, res, url) {
     if (req.method === 'GET' && url.pathname === '/api/config') {
       const validation = await validateAutoEditor();
       if (validation.ok) autoEditorVersion = validation.version;
+      const yt = await validateYtDlp();
       return sendJson(res, 200, {
         autoEditorFound: validation.ok, autoEditorPath: autoEditorPath || '', autoEditorVersion: validation.version || '', autoEditorError: validation.ok ? '' : validation.error,
+        ytDlpFound: yt.ok, ytDlpPath: ytDlpPath || '', ytDlpVersion: yt.version || '', ytDlpError: yt.ok ? '' : yt.error,
+        ffmpegPath,
+        downloadsDir: path.join(os.homedir(), 'Downloads'),
       });
     }
     if (req.method === 'GET' && url.pathname === '/api/media') return serveFileRange(req, res, mediaFiles.get(String(url.searchParams.get('token') || '')) || '');
     if (req.method === 'GET' && url.pathname === '/api/preview-media') return serveFileRange(req, res, getPreviewFile(url.searchParams.get('token')));
     if (req.method === 'GET' && url.pathname === '/api/job-status') {
       const record = jobs.get(normalizeJobId(url.searchParams.get('jobId')));
-      return sendJson(res, 200, record ? { running: record.running, cancelled: record.cancelled, progress: record.progress, label: record.label, elapsedMs: Date.now() - record.startedAt } : { running: false, progress: null });
+      return sendJson(res, 200, record ? {
+        running: record.running,
+        cancelled: record.cancelled,
+        progress: record.progress,
+        label: record.label,
+        elapsedMs: Date.now() - record.startedAt,
+        details: record.details || {},
+      } : { running: false, progress: null, details: {} });
     }
     if (req.method === 'GET' && url.pathname === '/api/job-result') {
       const id = normalizeJobId(url.searchParams.get('jobId'));
@@ -1042,6 +1406,29 @@ async function handleApi(req, res, url) {
       const selected = await nativePick('output', String(body.initial || '') || defaultOutput(sourcePath));
       if (!selected) return sendJson(res, 200, { cancelled: true });
       return sendJson(res, 200, { path: selected });
+    }
+
+    if (url.pathname === '/api/pick-folder') {
+      const selected = await nativePick('folder', String(body.initial || '') || path.join(os.homedir(), 'Downloads'));
+      if (!selected) return sendJson(res, 200, { cancelled: true });
+      return sendJson(res, 200, { path: selected });
+    }
+
+    if (url.pathname === '/api/youtube-info') {
+      return sendJson(res, 200, await getYoutubeInfo(body.url));
+    }
+
+    if (url.pathname === '/api/youtube-update') {
+      const result = await runProcess(ytDlpPath, ['-U'], { cwd: ROOT, maxOutput: 2 * 1024 * 1024 });
+      if (result.code !== 0) throw new Error(result.output || 'تعذر تحديث yt-dlp.');
+      const validation = await validateYtDlp();
+      return sendJson(res, 200, { ok: validation.ok, version: validation.version, output: result.output });
+    }
+
+    if (url.pathname === '/api/youtube-download') {
+      const payload = await downloadYoutube(body);
+      storeJobResult(requestJobId, payload);
+      return sendJson(res, 200, payload);
     }
 
     if (url.pathname === '/api/open-folder') {

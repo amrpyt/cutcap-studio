@@ -1,0 +1,14 @@
+.server.json
+.server.pid
+.server.log
+server.log
+server-error.log
+.watermark.json
+.cutcap-validate/
+.superpowers/
+standalone-cutcap/
+auto-editor-windows-x86_64.exe
+youtube-ui.png
+youtube-ui-mobile.png
+*.bak-watermark
+*.watermark-backup

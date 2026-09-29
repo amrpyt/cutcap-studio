@@ -27,3 +27,26 @@ Notes
 Developer check
 ---------------
 Run: node --test tests/shared.test.js tests/server.integration.test.js tests/server-process.test.js tests/launcher.test.js tests/ui.contract.test.js tests/auto-editor.integration.test.js
+
+Unified YouTube workspace
+-------------------------
+The same local Studio now includes a YouTube download workspace.
+
+Features:
+- Download only a selected time range with yt-dlp --download-sections.
+- Fast mode is the default and uses stream copy instead of re-encoding.
+- Optional exact-cut mode is available under Advanced settings.
+- Full-video and MP3 audio modes.
+- Quality caps from 360p to 2160p or best.
+- Video title, channel, duration and thumbnail inspection before download.
+- Live phase, progress, processed time, file size, download data, speed, ETA and elapsed time.
+- Download cancellation and output-folder selection.
+- yt-dlp update action from the UI.
+- 403/SABR retry fallback.
+- The Studio prefers the pinned CutCap FFmpeg build when it is installed.
+
+Download data:
+The UI prefers the byte count reported by yt-dlp/FFmpeg. If that number is not available, it falls back to an approximate whole-device receive counter and marks it with an approximation sign.
+
+Open the YouTube workspace from the top tab in the Studio.
+Fast clip download is the recommended default for normal use.

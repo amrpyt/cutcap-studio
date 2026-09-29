@@ -82,6 +82,172 @@ class WaveTimeline {
 function fmtClock(seconds){const s=Math.max(0,Number(seconds)||0),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=Math.floor(s%60);return h?`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`:`${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`}
 function fmtDuration(seconds){const s=Math.max(0,Number(seconds)||0);if(s<60)return `${s.toFixed(s<10?1:0)}ث`;return fmtClock(s)}
 
+function fmtBytes(bytes){
+  const n=Number(bytes);
+  if(!Number.isFinite(n)||n<=0)return '—';
+  const units=['B','KB','MB','GB'];
+  let value=n,i=0;
+  while(value>=1024&&i<units.length-1){value/=1024;i++}
+  return `${value.toFixed(i===0?0:value>=100?0:value>=10?1:2)} ${units[i]}`;
+}
+function fmtJobTime(seconds){
+  const s=Math.max(0,Math.round(Number(seconds)||0));
+  const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
+  return h?`${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`:`${m}:${String(sec).padStart(2,'0')}`;
+}
+function cleanDownloadLog(text){
+  return String(text||'').replace(/https?:\/\/\S+/g,'[media URL]').slice(-16000);
+}
+
+class YoutubeDownloaderPanel{
+  constructor(api){
+    this.api=api;this.jobId='';this.pollTimer=0;this.busy=false;this.outputDir='';this.lastOutput='';this.lastStatus=null;
+    this.bind();this.syncMode();
+  }
+  bind(){
+    $('ytKind').addEventListener('change',()=>this.syncMode());
+    $('ytPasteBtn').addEventListener('click',()=>this.pasteUrl());
+    $('ytInspectBtn').addEventListener('click',()=>this.inspect());
+    $('ytStartBtn').addEventListener('click',()=>this.start());
+    $('ytCancelBtn').addEventListener('click',()=>this.cancel());
+    $('ytPickFolderBtn').addEventListener('click',()=>this.pickFolder());
+    $('ytOpenFolderBtn').addEventListener('click',()=>this.openFolder());
+    $('ytUpdateBtn').addEventListener('click',()=>this.updateEngine());
+    $('ytUrl').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();this.inspect()}});
+    $('ytUrl').addEventListener('input',()=>{$('ytMeta').classList.add('hidden');this.clearMessage()});
+  }
+  init(cfg={}){
+    this.outputDir=cfg.downloadsDir||'';
+    $('ytOutputPath').textContent=this.outputDir||'Downloads';
+    $('ytOutputPath').title=this.outputDir||'';
+    $('ytEngineVersion').textContent=cfg.ytDlpVersion||'—';
+    $('ytEnginePath').textContent=cfg.ytDlpPath||'—';
+    $('ytEnginePath').title=cfg.ytDlpPath||'';
+    $('ytFfmpegPath').textContent=cfg.ffmpegPath||'—';
+    $('ytFfmpegPath').title=cfg.ffmpegPath||'';
+    const st=$('ytEngineStatus');
+    if(cfg.ytDlpFound){st.textContent='جاهز • '+(cfg.ytDlpVersion||'yt-dlp');st.className='status ok'}
+    else{st.textContent='محرك YouTube غير جاهز';st.className='status bad';this.showMessage(cfg.ytDlpError||'yt-dlp غير موجود.','warn')}
+  }
+  syncMode(){
+    const kind=$('ytKind').value;
+    const isClip=kind==='clip',isAudio=kind==='audio';
+    $('ytClipRange').classList.toggle('hidden',!isClip);
+    $('ytQualityField').classList.toggle('hidden',isAudio);
+    $('ytExact').disabled=this.busy||!isClip;
+    $('ytStartBtn').textContent=kind==='clip'?'ابدأ تنزيل المقطع':kind==='audio'?'ابدأ تنزيل الصوت':'ابدأ تنزيل الفيديو';
+  }
+  showMessage(text,type='err'){const el=$('ytMessage');el.textContent=text;el.className='message '+type}
+  clearMessage(){$('ytMessage').className='message hidden'}
+  async pasteUrl(){
+    try{
+      const text=await navigator.clipboard.readText();
+      if(text){$('ytUrl').value=text.trim();$('ytMeta').classList.add('hidden');this.clearMessage()}
+    }catch{this.showMessage('المتصفح لم يسمح بقراءة الحافظة. الصق الرابط يدويًا.','warn')}
+  }
+  async inspect(){
+    const url=$('ytUrl').value.trim();
+    if(!url)return this.showMessage('ضع رابط YouTube أولًا.');
+    const btn=$('ytInspectBtn');btn.disabled=true;this.clearMessage();
+    try{
+      btn.textContent='جاري القراءة…';
+      const d=await this.api.post('youtube-info',{url});
+      $('ytMetaTitle').textContent=d.title||'YouTube video';
+      $('ytMetaChannel').textContent=d.channel||'';
+      $('ytMetaDuration').textContent=d.duration?`المدة: ${fmtJobTime(d.duration)}`:'';
+      const img=$('ytThumb');
+      if(d.thumbnail){img.src=d.thumbnail;img.alt=d.title||'صورة الفيديو'}else{img.removeAttribute('src');img.alt=''}
+      $('ytMeta').classList.remove('hidden');
+    }catch(err){this.showMessage(err.message)}
+    finally{btn.disabled=this.busy;btn.textContent='جلب المعلومات'}
+  }
+  async pickFolder(){
+    try{
+      const d=await this.api.post('pick-folder',{initial:this.outputDir});
+      if(d.cancelled)return;
+      this.outputDir=d.path||this.outputDir;
+      $('ytOutputPath').textContent=this.outputDir;$('ytOutputPath').title=this.outputDir;
+    }catch(err){this.showMessage(err.message)}
+  }
+  setBusy(on){
+    this.busy=on;
+    document.querySelectorAll('[data-yt-control]').forEach(el=>el.disabled=on);editorTab.disabled=on;
+    $('ytCancelBtn').classList.toggle('hidden',!on);
+    if(!on)this.syncMode();
+  }
+  resetProgress(){
+    this.lastStatus=null;
+    $('ytProgress').value=0;$('ytPercent').textContent='0%';$('ytProgressTitle').textContent='جاري التحضير';
+    $('ytPhase').textContent='تحضير';$('ytProgressSub').textContent='جاري الاتصال بـ YouTube…';
+    for(const id of ['ytProcessed','ytMediaSize','ytNetwork','ytSpeed','ytEta','ytElapsed'])$(id).textContent='—';
+    $('ytLastLine').textContent='Starting…';$('ytSuccess').classList.add('hidden');$('ytLog').textContent='جاري بدء التنزيل…';
+  }
+  phaseName(value){return ({preparing:'جلب المعلومات',downloading:'تنزيل',merging:'دمج',done:'اكتمل'})[value]||'تنفيذ'}
+  renderStatus(status={}){
+    this.lastStatus=status;
+    const d=status.details||{},progress=Number(status.progress);
+    if(Number.isFinite(progress)){$('ytProgress').value=Math.max(0,Math.min(100,progress));$('ytPercent').textContent=Math.round(progress)+'%'}
+    else $('ytProgress').removeAttribute('value');
+    const phase=this.phaseName(d.phase);
+    $('ytPhase').textContent=phase;
+    $('ytProgressTitle').textContent=status.running?(status.label||phase):(d.phase==='done'?'اكتمل التنزيل':'جاري إنهاء المهمة');
+    $('ytProgressSub').textContent=d.clipDurationSec>0?'يتم تنزيل النطاق المطلوب فقط.':'يتم تنزيل المصدر المحدد.';
+    $('ytProcessed').textContent=d.processedSeconds!=null?(fmtJobTime(d.processedSeconds)+(d.clipDurationSec?` / ${fmtJobTime(d.clipDurationSec)}`:'')):'—';
+    $('ytMediaSize').textContent=fmtBytes(d.outputBytes);
+    const reported=Number(d.reportedDownloadBytes)||0,device=Number(d.networkRxBytes)||0;
+    $('ytNetwork').textContent=reported?fmtBytes(reported):(device?'≈ '+fmtBytes(device):'—');
+    const speedParts=[];
+    if(Number(d.processSpeed)>0)speedParts.push(Number(d.processSpeed).toFixed(2)+'×');
+    if(Number(d.downloadBytesPerSecond)>0)speedParts.push(fmtBytes(d.downloadBytesPerSecond)+'/s');
+    $('ytSpeed').textContent=speedParts.join(' · ')||'—';
+    $('ytEta').textContent=Number.isFinite(Number(d.etaSeconds))?fmtJobTime(d.etaSeconds):'—';
+    $('ytElapsed').textContent=status.elapsedMs?fmtJobTime(status.elapsedMs/1000):'—';
+    if(d.lastLine)$('ytLastLine').textContent=d.lastLine;
+  }
+  startPolling(jobId){
+    this.stopPolling();
+    const poll=async()=>{if(this.jobId!==jobId)return;try{const d=await this.api.get('/api/job-status?jobId='+encodeURIComponent(jobId),{timeoutMs:5000});if(this.jobId===jobId)this.renderStatus(d)}catch{}};
+    poll();this.pollTimer=setInterval(poll,500);
+  }
+  stopPolling(){if(this.pollTimer){clearInterval(this.pollTimer);this.pollTimer=0}}
+  async start(){
+    if(this.busy)return;
+    const url=$('ytUrl').value.trim(),kind=$('ytKind').value;
+    if(!url)return this.showMessage('ضع رابط YouTube أولًا.');
+    if(kind==='clip'&&(!$('ytStart').value.trim()||!$('ytEnd').value.trim()))return this.showMessage('حدد وقت البداية والنهاية.');
+    const jobId=(globalThis.crypto&&crypto.randomUUID)?crypto.randomUUID():`${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    this.jobId=jobId;this.lastOutput='';this.clearMessage();this.resetProgress();this.setBusy(true);this.startPolling(jobId);
+    const body={jobId,url,kind,quality:$('ytQuality').value,exact:kind==='clip'&&$('ytExact').checked,outputDir:this.outputDir};
+    if(kind==='clip'){body.start=$('ytStart').value.trim();body.end=$('ytEnd').value.trim()}
+    try{
+      const result=await this.api.post('youtube-download',body);
+      const finalStatus=await this.api.get('/api/job-status?jobId='+encodeURIComponent(jobId),{timeoutMs:5000}).catch(()=>null);
+      if(finalStatus)this.renderStatus(finalStatus);
+      $('ytProgress').value=100;$('ytPercent').textContent='100%';$('ytPhase').textContent='اكتمل';$('ytProgressTitle').textContent='تم التنزيل بنجاح';
+      this.lastOutput=result.outputPath||'';if(result.outputDir)this.outputDir=result.outputDir;
+      if(this.outputDir){$('ytOutputPath').textContent=this.outputDir;$('ytOutputPath').title=this.outputDir}
+      $('ytMediaSize').textContent=fmtBytes(result.finalSize)||$('ytMediaSize').textContent;
+      if(result.reportedDownloadBytes)$('ytNetwork').textContent=fmtBytes(result.reportedDownloadBytes);else if(result.networkRxBytes)$('ytNetwork').textContent='≈ '+fmtBytes(result.networkRxBytes);
+      $('ytSuccess').textContent=this.lastOutput?`تم الحفظ: ${this.lastOutput}`:'تم التنزيل بنجاح.';
+      $('ytSuccess').classList.remove('hidden');
+      $('ytLog').textContent=cleanDownloadLog(result.output||'تم بنجاح.');
+    }catch(err){
+      $('ytLog').textContent='ERROR:\n'+cleanDownloadLog(err.message);
+      if(!/تم إلغاء/.test(err.message))this.showMessage(err.message);
+      $('ytProgressTitle').textContent=/تم إلغاء/.test(err.message)?'تم إلغاء التنزيل':'فشل التنزيل';
+      $('ytPhase').textContent=/تم إلغاء/.test(err.message)?'ملغي':'خطأ';
+    }finally{this.stopPolling();if(this.jobId===jobId)this.jobId='';this.setBusy(false)}
+  }
+  async cancel(){if(!this.jobId)return;$('ytCancelBtn').disabled=true;$('ytProgressTitle').textContent='جاري الإلغاء…';try{await this.api.post('cancel',{jobId:this.jobId})}catch(err){this.showMessage(err.message)}}
+  async openFolder(){try{await this.api.post('open-folder',{target:this.lastOutput||this.outputDir})}catch(err){this.showMessage(err.message)}}
+  async updateEngine(){
+    const btn=$('ytUpdateBtn');if(this.busy)return;btn.disabled=true;this.clearMessage();
+    try{btn.textContent='جاري التحديث…';const d=await this.api.post('youtube-update');$('ytEngineVersion').textContent=d.version||'—';const st=$('ytEngineStatus');st.textContent='جاهز • '+(d.version||'yt-dlp');st.className='status ok';$('ytLog').textContent=cleanDownloadLog(d.output||'تم تحديث yt-dlp.')}
+    catch(err){this.showMessage(err.message)}
+    finally{btn.disabled=false;btn.textContent='تحديث المحرك'}
+  }
+}
+
 class App {
   constructor(){
     this.api=new ApiClient();this.player=$('player');this.cuts=[];this.timeline=new CutTimeline();this.wave=[];this.audioSuggestion=null;
@@ -89,10 +255,11 @@ class App {
     this.settingsRevision=new RevisionGuard();this.auditionRevision=new RevisionGuard();this.activeJobId='';this.jobPollTimer=0;this.noticeTimer=0;this.auditionHandler=null;
     this.timelineView=new WaveTimeline($('detailCanvas'),$('overviewCanvas'),t=>this.seekSource(t));
     this.proxyMonitor=new ProxyNoticeMonitor(this.player,t=>this.updateFromPlayer(t),(cut,type,text)=>this.showNotice(text,type==='cut'?'cut':''),()=>this.clearNotice());
-    this.analysisReady=false;this.busy=false;
-    this.bind();this.setBusy(true,'جاري فحص البرنامج…');this.init();
+    this.analysisReady=false;this.busy=false;this.youtubePanel=new YoutubeDownloaderPanel(this.api);this.workspaceMode='editor';
+    this.bind();if(new URLSearchParams(location.search).get('view')==='youtube')this.switchWorkspace('youtube');this.setBusy(true,'جاري فحص البرنامج…');this.init();
   }
   bind(){
+    $('editorTab').addEventListener('click',()=>this.switchWorkspace('editor'));$('youtubeTab').addEventListener('click',()=>this.switchWorkspace('youtube'));
     document.querySelectorAll('[data-step-target]').forEach(b=>b.addEventListener('click',()=>this.goToStep(Number(b.dataset.stepTarget))));$('previousStepBtn').addEventListener('click',()=>this.goToStep(this.currentStep-1));$('nextStepBtn').addEventListener('click',()=>this.goToStep(this.currentStep+1));$('cutsCard').prepend($('reviewPanel'));$('viewerSlot').append($('videoWrap'));
     $('pickVideoBtn').addEventListener('click',()=>this.pickVideo());$('pickWatermarkBtn').addEventListener('click',()=>this.pickWatermark());$('previewWatermarkBtn').addEventListener('click',()=>this.previewWatermark());$('confirmWatermarkBtn').addEventListener('click',()=>this.confirmWatermark());$('watermarkScale').addEventListener('input',e=>this.changeWatermarkScale(e.target.value));$('watermarkOpacity').addEventListener('input',e=>this.changeWatermarkOpacity(e.target.value));$('pickExeBtn').addEventListener('click',()=>this.pickExe());$('manualPathBtn').addEventListener('click',()=>this.useManualPath());
     $('cancelJobBtn').addEventListener('click',()=>this.cancelActiveJob());
@@ -116,7 +283,14 @@ class App {
     window.addEventListener('unhandledrejection',e=>console.error(e.reason));
     window.addEventListener('pagehide',()=>this.releasePreviewOnClose());
   }
-  async init(){this.syncStep();try{await this.api.get('/api/health');const cfg=await this.api.get('/api/config');this.clearServerError();$('exePath').textContent=cfg.autoEditorPath||'لم يتم العثور على Auto-Editor.';if(cfg.autoEditorFound){$('systemStatus').textContent='جاهز'+(cfg.autoEditorVersion?' • '+cfg.autoEditorVersion:'');$('systemStatus').className='status ok';$('exeHint').textContent='Auto-Editor متصل وجاهز.'}else{$('systemStatus').textContent='Auto-Editor غير محدد';$('systemStatus').className='status bad';$('systemDetails').open=true}await this.restoreWatermark()}catch(err){this.showServerError(err.message);$('systemStatus').textContent='غير متصل';$('systemStatus').className='status bad'}finally{this.setBusy(false)}}
+  async init(){this.syncStep();try{await this.api.get('/api/health');const cfg=await this.api.get('/api/config');this.youtubePanel.init(cfg);this.clearServerError();$('exePath').textContent=cfg.autoEditorPath||'لم يتم العثور على Auto-Editor.';if(cfg.autoEditorFound){$('systemStatus').textContent='جاهز'+(cfg.autoEditorVersion?' • '+cfg.autoEditorVersion:'');$('systemStatus').className='status ok';$('exeHint').textContent='Auto-Editor متصل وجاهز.'}else{$('systemStatus').textContent='Auto-Editor غير محدد';$('systemStatus').className='status bad';$('systemDetails').open=true}await this.restoreWatermark();if(new URLSearchParams(location.search).get('view')==='youtube')this.switchWorkspace('youtube')}catch(err){this.showServerError(err.message);$('systemStatus').textContent='غير متصل';$('systemStatus').className='status bad'}finally{this.setBusy(false)}}
+  switchWorkspace(mode){
+    const next=mode==='youtube'?'youtube':'editor';this.workspaceMode=next;
+    $('editorWorkspace').classList.toggle('hidden',next!=='editor');$('youtubeWorkspace').classList.toggle('hidden',next!=='youtube');
+    $('editorTab').classList.toggle('active',next==='editor');$('youtubeTab').classList.toggle('active',next==='youtube');
+    $('editorTab').setAttribute('aria-selected',next==='editor'?'true':'false');$('youtubeTab').setAttribute('aria-selected',next==='youtube'?'true':'false');
+    if(next==='youtube')this.pauseWorkspace();
+  }
   maxUnlockedStep(){return !this.videoPath?1:!this.analysisReady||this.analysisDirty?2:5}
   pauseWorkspace(){this.cancelAudition();this.player.pause();$('watermarkVideo').pause();this.proxyMonitor.stop()}
   goToStep(step){
@@ -147,7 +321,7 @@ class App {
   showMessage(text,type='err'){const el=$('actionMessage');el.textContent=text;el.className='message '+type}
   clearMessage(){$('actionMessage').classList.add('hidden')}
   showServerError(m){$('serverError').textContent=m;$('serverError').classList.remove('hidden')}clearServerError(){$('serverError').classList.add('hidden')}
-  setBusy(on,text='جاري التنفيذ…',cancellable=false){this.busy=on;if(on){this.pauseWorkspace();this.clearMessage()}const panel=$('busyPanel'),progress=$('jobProgress'),cancel=$('cancelJobBtn');document.querySelector('.page').setAttribute('aria-busy',on?'true':'false');panel.classList.toggle('hidden',!on);$('busyText').textContent=on?text:'';document.querySelectorAll('button,input,select').forEach(el=>el.disabled=on);cancel.disabled=!cancellable;cancel.classList.toggle('hidden',!cancellable);if(on)progress.removeAttribute('value');else{progress.removeAttribute('value');cancel.classList.add('hidden');this.syncStep()}}
+  setBusy(on,text='جاري التنفيذ…',cancellable=false){this.busy=on;if(on){this.pauseWorkspace();this.clearMessage()}const panel=$('busyPanel'),progress=$('jobProgress'),cancel=$('cancelJobBtn');document.querySelector('.page').setAttribute('aria-busy',on?'true':'false');panel.classList.toggle('hidden',!on);$('busyText').textContent=on?text:'';document.querySelectorAll('button,input,select').forEach(el=>el.disabled=on);cancel.disabled=!cancellable;cancel.classList.toggle('hidden',!cancellable);if(on)progress.removeAttribute('value');else{progress.removeAttribute('value');cancel.classList.add('hidden');this.syncStep();this.youtubePanel?.syncMode()}}
   settings(mode,jobId=''){return{mode,jobId,sourcePath:this.videoPath,output:$('outputPath').dataset.path||'',threshold:Number($('threshold').value),marginBefore:Number($('marginBefore').value),marginAfter:Number($('marginAfter').value),smoothCut:Number($('smoothCut').value),smoothClip:Number($('smoothClip').value),keepRanges:buildKeepRanges(this.cuts)}}
   markDirty(){this.settingsRevision.bump();if(!this.analysisReady)return;this.analysisDirty=true;this.releaseProxy(this.playerMode==='proxy'?this.currentSourceTime():null);$('dirtyNotice').classList.remove('hidden');$('exportSuccess').classList.add('hidden');this.syncStep()}
   markClean(revision){if(!this.settingsRevision.isCurrent(revision))return false;this.analysisReady=true;this.analysisDirty=false;$('dirtyNotice').classList.add('hidden');return true}

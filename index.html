@@ -44,6 +44,37 @@ body{font-size:14px;line-height:1.6}button,input,select,summary{transition:backg
 @media(min-width:1500px){.page{padding-inline:48px}}
 @media(max-width:1000px){.page{padding-inline:20px}.workflow{grid-template-columns:190px minmax(0,1fr);gap:20px}.card{padding:20px}.navCopy small{display:none}.stepNav{min-height:470px}.grid{grid-template-columns:1fr 1fr}.grid>.field:first-child{grid-column:1/-1}.watermarkControls{grid-template-columns:1fr 1fr}.watermarkControls button{grid-column:1/-1}}
 @media(max-width:760px){.page{padding:0 14px 20px}header{height:76px;flex-direction:row}.headerMeta .localTag,.brandTag{display:none}.workflow{display:flex;flex-direction:column;gap:20px;margin-top:18px}.stepNav{width:100%;min-height:0;padding:7px;border-radius:10px;gap:3px;justify-content:space-between}.stepNav button{min-width:0;min-height:42px;justify-content:center;flex:1;margin:0;padding:6px}.stepNav button .navCopy{display:none}.stepNav .railNote{display:none}.stage{width:100%}.stageTitle{font-size:24px}.stageHeader{margin-bottom:14px}.card{padding:18px}.importArea{padding:26px 12px}.grid{grid-template-columns:1fr}.exportMetrics{grid-template-columns:1fr 1fr 1fr}.metric{padding:12px 8px}.metric strong{font-size:18px}.exportOptions{align-items:flex-start}.status{font-size:10px;padding:6px}.stageFooter{gap:8px}.footerHint{display:none}.previewActions button{min-width:120px}.watermarkControls{grid-template-columns:1fr}.watermarkControls .field{min-width:0}.grow{min-width:150px}.videoWrap video{max-height:320px}.advanced{grid-template-columns:1fr 1fr}}
+.workspaceTabs{display:flex;gap:4px;align-items:center;margin:14px 0 0;border-bottom:1px solid var(--line)}
+.workspaceTabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--muted);padding:11px 14px;min-height:42px}
+.workspaceTabs button:hover{background:#f5f8f8;color:var(--text)}
+.workspaceTabs button.active{color:var(--ink);border-bottom-color:var(--ink);background:transparent}
+.youtubeWorkspace{max-width:1180px;margin:26px auto 0}
+.youtubeHeader{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px}
+.youtubeHeader h2{font-size:29px;margin:0 0 4px;letter-spacing:-.6px}
+.youtubeGrid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(350px,.85fr);gap:20px;align-items:start}
+.youtubeCard{margin:0;min-width:0}.youtubeCard h3{font-size:16px;margin:0 0 16px}
+.youtubeUrlRow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px}
+.youtubeMeta{display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;align-items:center;margin:16px 0 2px;padding:12px;border:1px solid var(--line);border-radius:10px;background:#f8fafa}
+.youtubeMeta img{width:150px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:#dfe7e8}
+.youtubeMetaTitle{font-weight:700;font-size:15px;line-height:1.5;margin-bottom:4px}
+.youtubeMetaLine{font-size:12px;color:var(--muted)}
+.youtubeFormGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px}
+.youtubeFormGrid .wide{grid-column:1/-1}.youtubeTimeGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.youtubePathRow{display:flex;gap:8px;align-items:center}.youtubePathRow .file{flex:1;min-width:0}
+.youtubeHint{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-radius:9px;background:#f1f8f5;border:1px solid #cce3d9;color:#315d55;font-size:12px;margin-top:14px}
+.youtubeAdvanced{margin-top:16px}.youtubeAdvanced label.checkboxRow{display:flex;gap:9px;align-items:flex-start;color:var(--text);font-size:13px;cursor:pointer}.youtubeAdvanced input[type=checkbox]{margin-top:3px;accent-color:var(--ink)}
+.youtubeActions{display:flex;gap:8px;align-items:center;margin-top:20px}.youtubeActions .primary{min-width:170px}
+.downloadProgressCard{position:sticky;top:20px}
+.downloadState{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:14px}.downloadState strong{font-size:18px}.phasePill{font-size:11px;border:1px solid var(--line);border-radius:999px;padding:5px 9px;background:#f7f9f9;color:#486168}
+.downloadProgressCard progress{width:100%;height:12px;accent-color:var(--ink)}
+.downloadPercentRow{display:flex;justify-content:space-between;margin:6px 0 16px;color:var(--muted);font-size:12px}.downloadPercentRow strong{color:var(--text)}
+.downloadMetrics{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.downloadMetric{background:#f8fafa;padding:13px}.downloadMetric span{display:block;color:var(--muted);font-size:11px}.downloadMetric strong{display:block;margin-top:3px;font-size:17px;color:#244f49;font-weight:650;direction:ltr;text-align:right}
+.downloadNote{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.7}.downloadLastLine{margin-top:13px;padding:9px 10px;background:#f7f9f9;border:1px solid var(--line);border-radius:8px;font:11px/1.5 Consolas,monospace;direction:ltr;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.youtubeResult{margin-top:14px}.youtubeEngine{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.youtubeEngine .pathText{max-width:420px}
+.youtubeLog{margin-top:18px}
+@media(max-width:900px){.youtubeGrid{grid-template-columns:minmax(0,1fr)}.downloadProgressCard{position:static}.youtubeWorkspace{margin-top:18px}}
+@media(max-width:620px){.youtubeWorkspace{width:100%;min-width:0}.youtubeHeader h2{font-size:24px}.youtubeEngine{width:100%}.youtubeActions{flex-wrap:wrap}.youtubeActions button{flex:1;min-width:0}.workspaceTabs{overflow:auto}.workspaceTabs button{white-space:nowrap}.youtubeHeader{flex-direction:column}.youtubeUrlRow{grid-template-columns:1fr 1fr}.youtubeUrlRow input{grid-column:1/-1}.youtubeFormGrid,.youtubeTimeGrid{grid-template-columns:1fr}.youtubeFormGrid .wide{grid-column:auto}.youtubeMeta{grid-template-columns:1fr}.youtubeMeta img{width:100%}.downloadMetrics{grid-template-columns:1fr 1fr}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 </style>
 </head>
@@ -54,6 +85,13 @@ body{font-size:14px;line-height:1.6}button,input,select,summary{transition:backg
     <div class="brand"><div class="brandMark" aria-hidden="true">⏵</div><div><h1 dir="ltr">Auto-Editor <span style="font-weight:400">Studio</span></h1><div class="brandTag" dir="ltr">LESS SILENCE. MORE STORY.</div></div></div>
     <div class="headerMeta"><span class="localTag">مساحة عمل محلية</span><div id="systemStatus" class="status" aria-live="polite">جاري الفحص…</div></div>
   </header>
+
+  <nav class="workspaceTabs" aria-label="أقسام الاستوديو">
+    <button id="editorTab" class="active" type="button" aria-selected="true">تحرير الفيديو</button>
+    <button id="youtubeTab" type="button" aria-selected="false">تحميل من YouTube</button>
+  </nav>
+
+  <div id="editorWorkspace">
 
   <div id="serverError" class="message err hidden" role="alert"></div>
   <div id="busyPanel" class="message info busyPanel hidden" role="status" aria-live="polite" aria-atomic="true"><div class="row"><span id="busyText">جاري التنفيذ…</span><progress id="jobProgress" max="100"></progress><button id="cancelJobBtn" type="button">إلغاء</button></div></div>
@@ -192,6 +230,128 @@ body{font-size:14px;line-height:1.6}button,input,select,summary{transition:backg
   </div>
 
   <details class="card techLog"><summary>التفاصيل التقنية / Log</summary><pre id="log">جاهز.</pre></details>
+  </div>
+
+  <section id="youtubeWorkspace" class="youtubeWorkspace hidden" aria-labelledby="youtubeTitle">
+    <div class="youtubeHeader">
+      <div>
+        <div class="stageEyebrow">DOWNLOAD STUDIO</div>
+        <h2 id="youtubeTitle">تحميل من YouTube</h2>
+        <div class="subtitle">نزّل الفيديو كاملًا، الصوت فقط، أو جزءًا زمنيًا محددًا بدون تنزيل الفيديو كله أولًا.</div>
+      </div>
+      <div class="youtubeEngine">
+        <span id="ytEngineStatus" class="status">جاري الفحص…</span>
+        <button id="ytUpdateBtn" class="small" type="button" data-yt-control>تحديث المحرك</button>
+      </div>
+    </div>
+
+    <div id="ytMessage" class="message hidden" role="status" aria-live="polite"></div>
+
+    <div class="youtubeGrid">
+      <section class="card youtubeCard">
+        <h3>المصدر والإعدادات</h3>
+        <label class="subtitle" for="ytUrl">رابط YouTube</label>
+        <div class="youtubeUrlRow">
+          <input id="ytUrl" class="ltr" type="text" inputmode="url" autocomplete="off" placeholder="https://www.youtube.com/watch?v=..." data-yt-control>
+          <button id="ytPasteBtn" type="button" data-yt-control>لصق</button>
+          <button id="ytInspectBtn" type="button" data-yt-control>جلب المعلومات</button>
+        </div>
+
+        <div id="ytMeta" class="youtubeMeta hidden">
+          <img id="ytThumb" alt="" referrerpolicy="no-referrer">
+          <div>
+            <div id="ytMetaTitle" class="youtubeMetaTitle"></div>
+            <div id="ytMetaChannel" class="youtubeMetaLine"></div>
+            <div id="ytMetaDuration" class="youtubeMetaLine"></div>
+          </div>
+        </div>
+
+        <div class="youtubeFormGrid">
+          <div class="field">
+            <label for="ytKind">نوع التنزيل</label>
+            <select id="ytKind" data-yt-control>
+              <option value="clip" selected>جزء محدد من الفيديو</option>
+              <option value="video">الفيديو كاملًا</option>
+              <option value="audio">الصوت فقط MP3</option>
+            </select>
+          </div>
+          <div id="ytQualityField" class="field">
+            <label for="ytQuality">أقصى جودة</label>
+            <select id="ytQuality" data-yt-control>
+              <option value="360">360p</option>
+              <option value="480">480p</option>
+              <option value="720" selected>720p — موصى بها</option>
+              <option value="1080">1080p</option>
+              <option value="1440">1440p</option>
+              <option value="2160">2160p</option>
+              <option value="best">أفضل جودة متاحة</option>
+            </select>
+          </div>
+
+          <div id="ytClipRange" class="wide">
+            <div class="youtubeTimeGrid">
+              <div class="field"><label for="ytStart">من</label><input id="ytStart" class="ltr" type="text" placeholder="26:15" data-yt-control></div>
+              <div class="field"><label for="ytEnd">إلى</label><input id="ytEnd" class="ltr" type="text" placeholder="35:22" data-yt-control></div>
+            </div>
+            <div class="youtubeHint"><strong>الأوفر للباقة:</strong><span>الوضع السريع يطلب النطاق المطلوب من السيرفر وينسخ الفيديو والصوت بدون إعادة ترميز. ده هو الوضع الافتراضي.</span></div>
+          </div>
+
+          <div class="field wide">
+            <label>مجلد الحفظ</label>
+            <div class="youtubePathRow">
+              <div id="ytOutputPath" class="file ltr">Downloads</div>
+              <button id="ytPickFolderBtn" type="button" data-yt-control>تغيير</button>
+            </div>
+          </div>
+        </div>
+
+        <details class="youtubeAdvanced">
+          <summary>إعدادات متقدمة</summary>
+          <label class="checkboxRow">
+            <input id="ytExact" type="checkbox" data-yt-control>
+            <span><strong>قص دقيق جدًا</strong><br><span class="subtitle">يعيد ترميز المقطع حول نقاط القطع؛ أبطأ ويستهلك المعالج أكثر. اتركه مقفولًا للاستخدام العادي.</span></span>
+          </label>
+          <div class="sep"></div>
+          <div class="subtitle">yt-dlp: <span id="ytEngineVersion" class="ltr">—</span></div>
+          <div id="ytEnginePath" class="pathText">—</div>
+          <div class="subtitle">FFmpeg</div>
+          <div id="ytFfmpegPath" class="pathText">—</div>
+        </details>
+
+        <div class="youtubeActions">
+          <button id="ytStartBtn" class="primary" type="button" data-yt-control>ابدأ التنزيل</button>
+          <button id="ytOpenFolderBtn" type="button">فتح مجلد الحفظ</button>
+        </div>
+      </section>
+
+      <aside class="card youtubeCard downloadProgressCard">
+        <div class="downloadState">
+          <div><div class="stageEyebrow">LIVE STATUS</div><strong id="ytProgressTitle">جاهز للتنزيل</strong></div>
+          <span id="ytPhase" class="phasePill">جاهز</span>
+        </div>
+        <progress id="ytProgress" max="100" value="0"></progress>
+        <div class="downloadPercentRow"><span id="ytProgressSub">لم تبدأ مهمة بعد.</span><strong id="ytPercent">0%</strong></div>
+
+        <div class="downloadMetrics">
+          <div class="downloadMetric"><span>الوقت المعالج</span><strong id="ytProcessed">—</strong></div>
+          <div class="downloadMetric"><span>حجم الملف الحالي</span><strong id="ytMediaSize">—</strong></div>
+          <div class="downloadMetric"><span>بيانات التنزيل</span><strong id="ytNetwork">—</strong></div>
+          <div class="downloadMetric"><span>سرعة المعالجة</span><strong id="ytSpeed">—</strong></div>
+          <div class="downloadMetric"><span>الوقت المتبقي</span><strong id="ytEta">—</strong></div>
+          <div class="downloadMetric"><span>المدة</span><strong id="ytElapsed">—</strong></div>
+        </div>
+        <div class="downloadNote">بيانات التنزيل تعتمد على الرقم الذي يبلّغه محرك التنزيل نفسه عند توفره. علامة ≈ تعني أن الرقم تقديري من حركة الشبكة الواردة للجهاز وقد يشمل برامج أخرى.</div>
+        <div id="ytLastLine" class="downloadLastLine">Ready.</div>
+
+        <div class="youtubeActions">
+          <button id="ytCancelBtn" class="dangerSoft hidden" type="button">إلغاء التنزيل</button>
+        </div>
+        <div id="ytSuccess" class="message success youtubeResult hidden" role="status"></div>
+      </aside>
+    </div>
+
+    <details class="card youtubeLog"><summary>التفاصيل التقنية / Log</summary><pre id="ytLog">جاهز.</pre></details>
+  </section>
 </div>
 
 <script src="/shared.js"></script>
