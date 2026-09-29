@@ -1,0 +1,14 @@
+{
+  "name": "cutcap-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first Windows video workflow studio for silence cutting, CapCut export, watermarking, and partial YouTube downloads.",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test",
+    "check": "node --check server.js && node --check app.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

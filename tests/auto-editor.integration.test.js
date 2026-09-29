@@ -24,11 +24,12 @@ function writeFixtureWav(file) {
   fs.writeFileSync(file, Buffer.concat([header, samples]));
 }
 
-test('bundled Auto-Editor v1 output marks silence as a cut understood by the GUI', async () => {
+test('bundled Auto-Editor v1 output marks silence as a cut understood by the GUI', async (t) => {
   const id = crypto.randomUUID();
   const input = path.join(os.tmpdir(), `ae-gui-test-${id}.wav`);
   const output = path.join(os.tmpdir(), `ae-gui-test-${id}.v1`);
   const exe = path.join(__dirname, '..', 'auto-editor-windows-x86_64.exe');
+  if (!fs.existsSync(exe)) return t.skip('Auto-Editor binary is not bundled in the repository.');
   writeFixtureWav(input);
   try {
     const result = await runProcess(exe, [input, '--edit', 'audio:threshold=4%', '--margin', '0s,0s', '--smooth', '0s,0s', '--export', 'v1', '-o', output], { cwd: path.dirname(input) });
