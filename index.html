@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Auto-Editor Studio</title>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f7f7f8;--card:#fff;--text:#18181b;--muted:#71717a;--line:#e4e4e7;
+  --ink:#18181b;--green:#067647;--greenBg:#ecfdf3;--red:#b42318;--redBg:#fff1f0;
+  --amber:#9a6700;--amberBg:#fff8db;--blue:#175cd3;--blueBg:#eff8ff;--soft:#fafafa;
+}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI",Tahoma,Arial,sans-serif}
+button,input,select{font:inherit}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #d4d4d8;outline-offset:2px}
+.page{max-width:1260px;margin:0 auto;padding:20px 16px 56px}header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:14px}
+h1{font-size:24px;margin:0;font-weight:780}.subtitle{font-size:13px;color:var(--muted);margin-top:5px;line-height:1.6}
+.status{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:7px 11px;background:#fff;white-space:nowrap}.status.ok{color:var(--green);background:var(--greenBg);border-color:#abefc6}.status.bad{color:var(--red);background:var(--redBg);border-color:#f6c7c3}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:13px;box-shadow:0 1px 2px rgba(0,0,0,.025)}
+.workflow{display:grid;grid-template-columns:230px minmax(0,1fr);gap:16px;align-items:start}.stepNav{position:sticky;top:16px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;box-shadow:0 1px 2px rgba(0,0,0,.025)}.stepNavTitle{padding:7px 9px 10px;font-size:12px;color:var(--muted);font-weight:760}.stepNav button{display:flex;width:100%;align-items:center;gap:9px;text-align:right;border:0;background:transparent;color:#52525b;font-weight:650}.stepNav button:hover{background:var(--soft)}.stepNav button.active{background:var(--ink);color:#fff}.stepNav button.done .stepNumber{background:var(--greenBg);color:var(--green)}.stepNav button.active .stepNumber{background:#fff;color:var(--ink)}.stepNumber{display:grid;place-items:center;width:25px;height:25px;border-radius:999px;background:#f4f4f5;color:#71717a;font-size:11px;flex:none}.stage{min-width:0}.workflowStep{display:none}.workflowStep.active{display:block}.stageHeader{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}.stageEyebrow{font-size:11px;color:var(--muted);font-weight:760}.stageTitle{font-size:21px;font-weight:780;margin-top:3px}.stageFooter{position:sticky;bottom:12px;display:flex;justify-content:space-between;gap:10px;background:rgba(247,247,248,.94);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:12px;z-index:8}.stageFooter .right{display:flex;gap:8px}.techLog{margin-top:16px}
+.title{font-size:15px;font-weight:760;margin:0 0 11px}.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.grow{flex:1;min-width:220px}.hidden{display:none!important}.ltr{direction:ltr;text-align:left}
+button{border:1px solid #d4d4d8;background:#fff;color:#27272a;border-radius:9px;padding:9px 13px;font-size:13px;font-weight:680;cursor:pointer;min-height:40px}button:hover{background:#fafafa}button:disabled{opacity:.48;cursor:not-allowed}
+button.primary{background:var(--ink);border-color:var(--ink);color:#fff}button.primary:hover{background:#27272a}button.green{background:var(--green);border-color:var(--green);color:#fff}.small{padding:6px 9px;min-height:32px;font-size:12px}.dangerSoft{color:var(--red);background:var(--redBg);border-color:#f6c7c3}
+.file{padding:11px 12px;border:1px dashed #d4d4d8;border-radius:9px;background:#fafafa;color:#3f3f46;overflow-wrap:anywhere;font-size:13px}
+.message{font-size:13px;border-radius:9px;padding:10px 12px;margin:10px 0}.message.err{color:var(--red);background:var(--redBg);border:1px solid #f6c7c3}.message.warn{color:#7a4e00;background:var(--amberBg);border:1px solid #f2d675}.message.info{color:#1849a9;background:var(--blueBg);border:1px solid #b2ddff}
+.busyPanel .row{justify-content:space-between}.busyPanel progress{flex:1;min-width:150px;max-width:420px}.busyPanel button{min-height:32px;padding:5px 10px}
+.videoWrap{position:relative;margin-top:12px;background:#000;border-radius:12px;overflow:hidden}video{display:block;width:100%;max-height:590px;background:#000}.modePill{position:absolute;right:14px;top:14px;background:rgba(24,24,27,.88);color:#fff;padding:6px 10px;border-radius:999px;font-size:11px;font-weight:760;pointer-events:none}
+.notice{position:absolute;left:50%;top:16px;transform:translateX(-50%);max-width:84%;padding:8px 12px;border-radius:9px;background:rgba(154,103,0,.95);color:#fff;font-size:12px;font-weight:760;pointer-events:none;opacity:0;transition:opacity .12s;text-align:center}.notice.show{opacity:1}.notice.cut{background:rgba(180,35,24,.95)}.notice.original{background:rgba(23,92,211,.93)}
+.previewPanel{margin-top:12px;border:1px solid var(--line);border-radius:12px;background:#fcfcfd;padding:13px}.previewActions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.previewActions .main{min-width:235px}.speedBox{display:flex;gap:7px;align-items:center;margin-inline-start:auto;color:var(--muted);font-size:12px}.speedBox select{width:84px}
+.clockRow{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:#52525b}.clock{font-weight:760;color:#27272a;direction:ltr}.summary{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.badge{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:5px 9px;background:#fff;color:#52525b}
+.timelineBox{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}.timelineHead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:7px}.timelineTitle{font-size:13px;font-weight:740}.timelineLegend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted)}.legendSwatch{display:inline-block;width:10px;height:10px;border-radius:2px;margin-inline-end:4px;vertical-align:-1px}.swRed{background:#f04438}.swBlue{background:#2e90fa}.swGray{background:#98a2b3}
+.canvasWrap{position:relative;border:1px solid #e4e4e7;border-radius:10px;overflow:hidden;background:#fff;direction:ltr}.canvasWrap canvas{display:block;width:100%;height:150px;cursor:crosshair}.canvasWrap canvas:focus-visible{outline:3px solid #d4d4d8;outline-offset:-3px}.overviewWrap{margin-top:7px}.overviewWrap canvas{height:46px}.axis{display:flex;justify-content:space-between;color:#71717a;font-size:11px;direction:ltr;margin-top:5px}.zoomSelect{width:118px}
+.grid{display:grid;grid-template-columns:1.4fr .8fr .8fr;gap:11px}.field label{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}.rangeHead{display:flex;justify-content:space-between;gap:10px;font-size:13px;margin-bottom:6px}.value{font-weight:760}input[type=range]{width:100%;accent-color:#18181b}input[type=text],input[type=number],select{width:100%;border:1px solid #d4d4d8;border-radius:9px;padding:9px 10px;background:#fff;color:#18181b;font-size:14px;outline:none}
+.autoBox{border:1px solid #dbeafe;background:#f8fbff;border-radius:11px;padding:12px;margin-bottom:13px}.autoTop{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.autoTitle{font-weight:740;font-size:13px}.autoResult{margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.suggestion{border:1px solid #d4d4d8;border-radius:10px;background:#fff;padding:10px;text-align:center}.suggestion strong{font-size:19px;display:block;margin:2px 0}.suggestion.recommended{border-color:#84adff;background:#f5f8ff}.suggestion button{width:100%;margin-top:7px}.confidence{font-size:11px;color:var(--muted);margin-top:7px}
+details{margin-top:10px}summary{cursor:pointer;color:#52525b;font-size:13px;user-select:none}.advanced{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:11px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}.sep{height:1px;background:var(--line);margin:15px 0}.pathRow{display:flex;gap:8px;align-items:center}.pathText{flex:1;direction:ltr;text-align:left;color:#71717a;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tableWrap{max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:9px;margin-top:10px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 7px;border-bottom:1px solid #eee;text-align:center;white-space:nowrap}th{position:sticky;top:0;background:#fafafa;color:#71717a;font-weight:650;z-index:2}tbody tr:hover{background:#fafafa}tbody tr.active{background:#eff8ff}tbody tr.kept{opacity:.52}
+.watermarkEditor{margin-top:12px}.watermarkCanvas{position:relative;direction:ltr;width:min(100%,900px);margin:0 auto;background:#000;border-radius:12px;overflow:hidden;border:1px solid var(--line)}.watermarkCanvas video{display:block;width:100%;height:auto;max-height:none;background:#000}.watermarkOverlay{position:absolute;left:2%;top:3%;width:12%;height:auto;max-width:none;cursor:grab;touch-action:none;user-select:none;-webkit-user-drag:none;z-index:3}.watermarkOverlay.dragging{cursor:grabbing}.watermarkControls{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end;margin-top:12px}.watermarkControls .field{min-width:180px}.watermarkHint{text-align:center;margin-top:8px}
+pre{direction:ltr;text-align:left;white-space:pre-wrap;word-break:break-word;background:#fafafa;border:1px solid var(--line);border-radius:9px;padding:11px;max-height:180px;overflow:auto;font:12px/1.5 Consolas,monospace;color:#52525b;margin:9px 0 0}
+@media(max-width:760px){header{flex-direction:column}.workflow{grid-template-columns:1fr}.stepNav{position:static;display:flex;overflow:auto;gap:5px}.stepNavTitle{display:none}.stepNav button{min-width:max-content;width:auto}.stepNav button span:last-child{display:none}.grid{grid-template-columns:1fr}.advanced{grid-template-columns:1fr 1fr}.autoResult{grid-template-columns:1fr}.actions button,.previewActions button{flex:1}.speedBox{width:100%;margin-inline-start:0}.clockRow{flex-direction:column}.status{white-space:normal}.canvasWrap canvas{height:120px}.watermarkControls{grid-template-columns:1fr}}
+/* Studio shell: native controls, local fonts and no animation runtime. */
+:root{--bg:#eef2f3;--text:#203238;--muted:#61747a;--line:#dbe4e6;--ink:#17665d;--soft:#f5f8f8;--green:#17665d}
+body{font-size:14px;line-height:1.6}button,input,select,summary{transition:background-color .12s,border-color .12s}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid #37a798;outline-offset:3px}button{border-color:#cedadc;border-radius:8px;font-weight:600}button.primary:hover,button.green:hover{background:#104f48}button:disabled{opacity:.42}h1{font-size:19px;letter-spacing:-.4px}.subtitle{line-height:1.7}.page{max-width:1540px;padding:0 32px 28px}header{height:86px;align-items:center;margin:0;border-bottom:1px solid var(--line)}.brand{display:flex;align-items:center;gap:12px}.brandMark{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;color:#fff;background:#203b40;font-size:21px;font-weight:700}.brandTag{font-size:10px;letter-spacing:2px;color:var(--muted)}.headerMeta{display:flex;gap:12px;align-items:center}.localTag{font-size:11px;color:var(--muted)}.workflow{grid-template-columns:222px minmax(0,1fr);gap:30px;margin-top:26px}.stepNav{background:#203438;border:0;border-radius:14px;padding:22px 14px;top:20px;min-height:530px;box-shadow:none}.stepNavTitle{color:#97b1b5;font-size:11px;padding:0 12px 20px}.stepNav button{min-height:68px;margin-bottom:6px;color:#c5d5d7;gap:12px;padding:11px;border-radius:9px}.stepNav button:hover{background:#2b4448}.stepNav button.active{background:#345652;color:#fff}.stepNav button.active .stepNumber{background:#d4f4e6;color:#204b40}.stepNumber{background:#304a4e;color:#b7ccce;border:1px solid #4c6366;border-radius:8px;width:29px;height:29px}.stepNav button.done .stepNumber{background:#264c44;color:#b4e5ca;border-color:#4c7669}.navCopy{display:flex;flex-direction:column}.navCopy small{font-size:10px;color:#9bb4b6;font-weight:400;margin-top:2px}.railNote{border-top:1px solid #3b5357;margin:26px 12px 0;padding-top:18px;color:#aac0c3;font-size:11px;line-height:1.9}.railNote strong{display:block;color:#e1ecee;font-weight:500}.stage{max-width:1100px;display:flex;flex-direction:column}.stageHeader{margin-bottom:20px;align-items:center}.stageTitle{font-size:29px;letter-spacing:-.6px;line-height:1.4;margin:4px 0}.stageEyebrow{color:#31776d;letter-spacing:.4px}.projectStrip{display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:18px;border:1px solid var(--line);border-radius:8px;background:#f8fafa;font-size:12px;color:var(--muted);min-width:0}.projectStrip strong{color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr}.projectDot{width:7px;height:7px;background:#218679;border-radius:50%;flex:none}.card{border-radius:12px;padding:24px;box-shadow:0 2px 3px #233d4203;margin:0 0 16px}.title{font-size:17px;margin-bottom:16px}.importArea{text-align:center;padding:38px 20px 30px;border:1px dashed #b8cdcd;border-radius:10px;background:#f8fbfa}.importIcon{width:54px;height:54px;display:grid;place-items:center;margin:0 auto 16px;background:#e5f0ec;color:#21685d;border-radius:14px;font-size:24px}.importArea h2{margin:0 0 6px;font-size:21px;font-weight:600}.importArea .subtitle{margin-bottom:20px}.importArea .file{margin-top:18px;border:0;background:transparent;padding:0;color:var(--muted)}.importArea button{min-width:160px}.file{border-style:solid;border-color:var(--line);background:#f7f9f9;border-radius:8px}.videoWrap{margin:0 0 16px;border-radius:12px;min-height:160px}.videoWrap video{max-height:390px}.previewPanel{margin:0;padding:0;border:0;background:transparent}.previewActions .main{min-width:180px}.timelineBox{margin-top:18px}.timelineLegend{margin-bottom:9px}.clockRow{padding:12px 0 0}.badge{border-radius:6px;background:#f5f8f8}.autoBox{background:#f1f8f5;border-color:#cce3d9;padding:18px;margin-bottom:24px}.autoTitle{font-size:15px}.suggestion.recommended{background:#edf8f2;border-color:#8ebba5}.grid{gap:20px}.field label{font-size:12px;color:#415a61}.rangeHead .value{color:var(--ink)}input[type=range]{accent-color:var(--ink);min-height:26px}details{border-top:1px solid var(--line);padding-top:14px;margin-top:22px}summary{color:#425e64;font-weight:500}details[open]>summary{margin-bottom:14px}.actions{margin-top:24px}.stageFooter{position:static;background:transparent;border:0;border-top:1px solid var(--line);border-radius:0;backdrop-filter:none;margin-top:4px;padding:18px 0 0;align-items:center}.footerHint{font-size:11px;color:var(--muted);margin-inline-end:auto}.techLog{margin-top:22px;padding:12px 18px;box-shadow:none;background:transparent}.techLog summary{font-size:11px}.message{margin:12px 0}.message.success{background:#eaf6ef;border:1px solid #b7d9c5;color:#216141}.exportMetrics{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:24px}.metric{background:#f8fafa;padding:18px}.metric span{display:block;color:var(--muted);font-size:12px}.metric strong{font-size:22px;color:#244f49;font-weight:600}.exportOptions{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:22px 0 8px}.exportOptions .title{margin:0}.watermarkCanvas{max-width:680px}.watermarkControls{background:#f5f8f8;border-radius:10px;padding:18px}.watermarkHint{margin-top:14px}.skipLink{position:fixed;top:-80px;right:20px;z-index:100;background:white;padding:10px}.skipLink:focus{top:10px}.emptyCuts{text-align:center;padding:24px;color:var(--muted)}
+.videoWrap video{max-height:min(34vh,360px)}.stepNav button:disabled{opacity:.65}.hasVideo .importArea{padding:16px;display:flex;align-items:center;gap:14px;text-align:right}.hasVideo .importArea h2,.hasVideo .importArea>.subtitle,.hasVideo .importIcon{display:none}.hasVideo .importArea .file{margin:0}.hasVideo .importArea button{min-width:125px;flex:none}.watermarkOverlay:focus-visible{outline:2px solid #fff;outline-offset:3px}
+@media(min-width:1500px){.page{padding-inline:48px}}
+@media(max-width:1000px){.page{padding-inline:20px}.workflow{grid-template-columns:190px minmax(0,1fr);gap:20px}.card{padding:20px}.navCopy small{display:none}.stepNav{min-height:470px}.grid{grid-template-columns:1fr 1fr}.grid>.field:first-child{grid-column:1/-1}.watermarkControls{grid-template-columns:1fr 1fr}.watermarkControls button{grid-column:1/-1}}
+@media(max-width:760px){.page{padding:0 14px 20px}header{height:76px;flex-direction:row}.headerMeta .localTag,.brandTag{display:none}.workflow{display:flex;flex-direction:column;gap:20px;margin-top:18px}.stepNav{width:100%;min-height:0;padding:7px;border-radius:10px;gap:3px;justify-content:space-between}.stepNav button{min-width:0;min-height:42px;justify-content:center;flex:1;margin:0;padding:6px}.stepNav button .navCopy{display:none}.stepNav .railNote{display:none}.stage{width:100%}.stageTitle{font-size:24px}.stageHeader{margin-bottom:14px}.card{padding:18px}.importArea{padding:26px 12px}.grid{grid-template-columns:1fr}.exportMetrics{grid-template-columns:1fr 1fr 1fr}.metric{padding:12px 8px}.metric strong{font-size:18px}.exportOptions{align-items:flex-start}.status{font-size:10px;padding:6px}.stageFooter{gap:8px}.footerHint{display:none}.previewActions button{min-width:120px}.watermarkControls{grid-template-columns:1fr}.watermarkControls .field{min-width:0}.grow{min-width:150px}.videoWrap video{max-height:320px}.advanced{grid-template-columns:1fr 1fr}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<a class="skipLink" href="#stageTitle">انتقل إلى مساحة العمل</a>
+<div class="page">
+  <header>
+    <div class="brand"><div class="brandMark" aria-hidden="true">⏵</div><div><h1 dir="ltr">Auto-Editor <span style="font-weight:400">Studio</span></h1><div class="brandTag" dir="ltr">LESS SILENCE. MORE STORY.</div></div></div>
+    <div class="headerMeta"><span class="localTag">مساحة عمل محلية</span><div id="systemStatus" class="status" aria-live="polite">جاري الفحص…</div></div>
+  </header>
+
+  <div id="serverError" class="message err hidden" role="alert"></div>
+  <div id="busyPanel" class="message info busyPanel hidden" role="status" aria-live="polite" aria-atomic="true"><div class="row"><span id="busyText">جاري التنفيذ…</span><progress id="jobProgress" max="100"></progress><button id="cancelJobBtn" type="button">إلغاء</button></div></div>
+
+  <div class="workflow">
+    <aside class="stepNav" aria-label="مراحل العمل">
+      <div class="stepNavTitle">مراحل تجهيز الفيديو</div>
+      <button type="button" data-step-target="1" aria-label="1 اختيار الفيديو"><span class="stepNumber">1</span><span class="navCopy">اختيار الفيديو<small>ابدأ بملفك الأصلي</small></span></button>
+      <button type="button" data-step-target="2" aria-label="2 إعداد القص"><span class="stepNumber">2</span><span class="navCopy">إعداد القص<small>اضبط ما تريد حذفه</small></span></button>
+      <button type="button" data-step-target="3" aria-label="3 المراجعة"><span class="stepNumber">3</span><span class="navCopy">المراجعة<small>استمع. راجع. احتفظ.</small></span></button>
+      <button type="button" data-step-target="4" aria-label="4 اللوجو"><span class="stepNumber">4</span><span class="navCopy">اللوجو<small>أضف هويتك البصرية</small></span></button>
+      <button type="button" data-step-target="5" aria-label="5 التصدير"><span class="stepNumber">5</span><span class="navCopy">التصدير<small>فيديو جاهز للمشاركة</small></span></button>
+      <div class="railNote"><strong>ملفك الأصلي في أمان</strong>التصدير ينشئ ملفًا جديدًا.<br>كل المعالجة على جهازك.</div>
+    </aside>
+    <main class="stage">
+      <div class="stageHeader"><div><div id="stageEyebrow" class="stageEyebrow">المرحلة 1 من 5</div><h2 id="stageTitle" class="stageTitle" tabindex="-1">اختيار الفيديو</h2><div id="stageDescription" class="subtitle">اختر الفيديو الذي تريد تنظيفه من الأجزاء الصامتة.</div></div></div>
+      <div id="projectStrip" class="projectStrip hidden"><span class="projectDot" aria-hidden="true"></span><span>المشروع</span><strong id="projectName"></strong><span id="projectState"></span></div>
+      <div id="actionMessage" class="message hidden" role="status" aria-live="polite"></div>
+      <div id="viewerSlot"></div>
+
+  <section class="card workflowStep" data-step="1">
+    <div class="importArea"><div class="importIcon" aria-hidden="true">▻</div><h2>بداية جديدة لفيديو أفضل</h2><div class="subtitle">احذف فترات الصمت، راجع النتيجة، ثم أضف اللوجو.</div><button id="pickVideoBtn" class="primary" type="button">اختيار فيديو</button><div id="videoName" class="file">لم يتم اختيار فيديو.</div></div>
+    <div id="videoWrap" class="videoWrap hidden">
+      <video id="player" controls preload="metadata"></video>
+      <div id="modePill" class="modePill">المصدر الأصلي</div>
+      <div id="notice" class="notice" aria-live="polite"></div>
+    </div>
+
+    <div id="reviewPanel" class="previewPanel hidden">
+      <div class="previewActions">
+        <button id="smoothPreviewBtn" class="primary main" type="button">▶ معاينة سلسة بعد القص</button>
+        <button id="previewHereBtn" type="button">▶ المعاينة من هنا</button>
+        <button id="sourceBtn" type="button">المصدر الأصلي</button>
+        <div class="speedBox"><label for="previewSpeed">السرعة</label><select id="previewSpeed"><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></div>
+      </div><div class="subtitle">تُجهّز المعاينة الخفيفة عند أول تشغيل فقط. جودة التصدير لا تتأثر.</div>
+      <div class="clockRow"><div>بعد القص: <span id="editedClock" class="clock">00:00 / 00:00</span></div><div>المصدر: <span id="sourceClock" class="clock">00:00 / 00:00</span></div></div>
+      <div id="summary" class="summary"></div>
+      <div id="riskWarning" class="message warn hidden"></div>
+
+      <div class="timelineBox">
+        <div class="timelineHead">
+          <div><div class="timelineTitle">Timeline مفصلة حول مكان التشغيل</div><div class="subtitle" id="timelineWindowText">نافذة 60 ثانية</div></div>
+          <label for="timelineZoom" class="subtitle">نطاق العرض</label><select id="timelineZoom" class="zoomSelect"><option value="30">30 ثانية</option><option value="60" selected>60 ثانية</option><option value="120">دقيقتان</option><option value="300">5 دقائق</option><option value="0">الفيديو كامل</option></select>
+        </div>
+        <div class="timelineLegend"><span><i class="legendSwatch swGray"></i>مستوى الصوت</span><span><i class="legendSwatch swBlue"></i>Threshold</span><span><i class="legendSwatch swRed"></i>سيتم حذفه</span></div>
+        <div class="canvasWrap"><canvas id="detailCanvas" tabindex="0" role="slider" aria-label="Timeline تفصيلية للصوت والقص" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"></canvas></div>
+        <div class="axis"><span id="detailStart">00:00</span><span id="detailCenter">00:00</span><span id="detailEnd">00:00</span></div>
+        <div class="overviewWrap canvasWrap"><canvas id="overviewCanvas" tabindex="0" role="slider" aria-label="نظرة عامة للفيديو" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"></canvas></div><div class="subtitle">اضغط للتنقل، أو استخدم الأسهم بعد تحديد الشريط. الأحمر سيُحذف.</div>
+      </div>
+    </div>
+
+    <details id="systemDetails">
+      <summary>إعدادات البرنامج</summary>
+      <div style="margin-top:11px"><div class="pathRow"><div id="exePath" class="pathText">—</div><button id="pickExeBtn" class="small" type="button">اختيار EXE</button></div><div id="exeHint" class="subtitle">ضع auto-editor-windows-x86_64.exe بجوار start-gui.bat ليتم اكتشافه تلقائيًا.</div></div>
+      <div class="sep"></div>
+      <label class="subtitle" for="manualVideoPath">مسار يدوي للفيديو (اختياري)</label>
+      <div class="row" style="margin-top:7px"><input id="manualVideoPath" class="grow ltr" type="text" placeholder="D:\Videos\video.mp4"><button id="manualPathBtn" type="button">استخدم المسار</button></div>
+    </details>
+  </section>
+
+  <section class="card workflowStep" data-step="2">
+    <div class="title">إعداد القص</div>
+    <div id="dirtyNotice" class="message warn hidden" role="status" aria-live="polite">إعدادات التحليل اتغيرت. أعد تحليل أماكن القص قبل التصدير.</div>
+
+    <div class="autoBox">
+      <div class="autoTop"><div><div class="autoTitle">ابدأ بإعداد يناسب صوتك</div><div class="subtitle">اقتراح مبني على مستوى الصوت. راجع الكلام الهادئ قبل التصدير.</div></div><button id="autoThresholdBtn" type="button">اقتراح إعداد تلقائي</button></div>
+      <div id="autoResult" class="autoResult hidden">
+        <div class="suggestion"><span>آمن</span><strong id="safeValue">—</strong><div class="subtitle">يحافظ على الكلام الهادئ أكثر</div><button type="button" data-suggestion="safe">استخدم</button></div>
+        <div class="suggestion recommended"><span>موصى به</span><strong id="recommendedValue">—</strong><div class="subtitle">نقطة بداية متوازنة</div><button class="primary" type="button" data-suggestion="recommended">استخدم الموصى به</button></div>
+        <div class="suggestion"><span>أقوى</span><strong id="aggressiveValue">—</strong><div class="subtitle">يحذف صوتًا أهدأ أكثر</div><button type="button" data-suggestion="aggressive">استخدم</button></div>
+      </div>
+      <div id="confidenceText" class="confidence"></div>
+    </div>
+
+    <div class="grid">
+      <div class="field"><div class="rangeHead"><label for="threshold">حساسية حذف الصمت</label><span id="thresholdValue" class="value">4%</span></div><input id="threshold" data-setting type="range" min="0.5" max="25" step="0.1" value="4"><div class="subtitle">قيمة أعلى تحذف صوتًا هادئًا أكثر. ابدأ منخفضًا للحفاظ على الكلام.</div></div>
+      <div class="field"><label for="marginBefore">مساحة قبل الكلام (ثانية)</label><input id="marginBefore" data-setting type="number" min="0" step="0.05" value="0.20"></div>
+      <div class="field"><label for="marginAfter">مساحة بعد الكلام (ثانية)</label><input id="marginAfter" data-setting type="number" min="0" step="0.05" value="0.40"></div>
+    </div>
+    <details><summary>إعدادات متقدمة</summary><div class="advanced"><div class="field"><label for="smoothCut">Minimum Cut</label><input id="smoothCut" data-setting type="number" min="0" step="0.05" value="0.35"></div><div class="field"><label for="smoothClip">Minimum Clip</label><input id="smoothClip" data-setting type="number" min="0" step="0.05" value="0.10"></div><div class="field"><label>Preset</label><button class="presetBtn" data-preset="4" type="button">Default 4%</button></div><div class="field"><label>Preset</label><button class="presetBtn" data-preset="8" type="button">8%</button></div></div></details>
+    <div class="actions"><button id="analyzeBtn" class="primary" type="button">تحليل الفيديو ومراجعة القص</button></div>
+  </section>
+
+  <section id="cutsCard" class="card workflowStep hidden" data-step="3">
+    <details>
+      <summary>مراجعة كل جزء محذوف</summary>
+      <div id="cutSelectionSummary" class="summary"></div>
+      <div class="tableWrap"><table><thead><tr><th>#</th><th>من</th><th>إلى</th><th>المدة</th><th>مراجعة</th><th>القرار</th></tr></thead><tbody id="cutsBody"></tbody></table></div>
+    </details>
+  </section>
+
+  <section class="card workflowStep" data-step="4">
+    <div class="title">اللوجو / العلامة المائية</div>
+    <div class="row">
+      <button id="pickWatermarkBtn" type="button">اختيار Logo أو GIF</button>
+      <div id="watermarkName" class="file grow">بدون لوجو.</div>
+      <button id="previewWatermarkBtn" type="button">فتح المعاينة</button>
+    </div>
+    <div id="watermarkEditor" class="watermarkEditor hidden">
+      <div id="watermarkCanvas" class="watermarkCanvas">
+        <video id="watermarkVideo" controls muted playsinline preload="metadata"></video>
+        <img id="watermarkDragLogo" class="watermarkOverlay hidden" alt="اللوجو" tabindex="0" role="button" aria-label="مكان اللوجو، استخدم الأسهم للتحريك">
+      </div>
+      <div class="watermarkControls">
+        <div class="field">
+          <div class="rangeHead"><label for="watermarkScale">الحجم</label><span id="watermarkScaleValue" class="value">12%</span></div>
+          <input id="watermarkScale" type="range" min="2" max="40" step="0.5" value="12">
+        </div>
+        <div class="field">
+          <div class="rangeHead"><label for="watermarkOpacity">الشفافية</label><span id="watermarkOpacityValue" class="value">100%</span></div>
+          <input id="watermarkOpacity" type="range" min="10" max="100" step="1" value="100">
+        </div>
+        <button id="confirmWatermarkBtn" class="primary" type="button">اعتماد المكان</button>
+      </div>
+      <div id="watermarkStatus" class="subtitle watermarkHint" role="status">اسحب اللوجو، أو حدده واستخدم الأسهم لتحريكه.</div>
+    </div>
+  </section>
+
+  <section class="card workflowStep" data-step="5">
+    <div class="title">راجع ملخص الفيديو</div>
+    <div class="exportMetrics"><div class="metric"><span>مدة المصدر</span><strong id="exportSource">—</strong></div><div class="metric"><span>بعد القص</span><strong id="exportDuration">—</strong></div><div class="metric"><span>الأجزاء المحذوفة</span><strong id="exportCuts">—</strong></div></div>
+    <div class="subtitle" id="exportLogo">بدون لوجو</div>
+    <div class="exportOptions"><h3 class="title">مكان حفظ الفيديو</h3><button id="pickOutputBtn" class="small" type="button">تغيير المكان</button></div>
+    <div id="outputPath" class="file ltr">اختار فيديو أولًا.</div>
+    <div class="actions"><button id="renderBtn" class="primary" type="button">تصدير الفيديو النهائي</button><button id="openFolderBtn" type="button">فتح مجلد الحفظ</button></div>
+    <div id="exportSuccess" class="message success hidden" role="status"></div>
+    <details open><summary>متابعة المونتاج في CapCut</summary><div class="subtitle">ينشئ مشروع CapCut بتايم لاين قابل للتعديل من نفس الفيديو الأصلي ومن غير رندر وسيط. اللوجو لا ينتقل في النسخة الحالية.</div><div class="actions"><button id="capcutBtn" class="green" type="button">إنشاء مشروع CapCut</button></div></details>
+  </section>
+
+      <div class="stageFooter">
+        <button id="previousStepBtn" type="button">السابق</button>
+        <span id="footerHint" class="footerHint">خطوة واحدة في كل مرة</span>
+        <div class="right"><button id="nextStepBtn" class="primary" type="button">التالي</button></div>
+      </div>
+    </main>
+  </div>
+
+  <details class="card techLog"><summary>التفاصيل التقنية / Log</summary><pre id="log">جاهز.</pre></details>
+</div>
+
+<script src="/shared.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
